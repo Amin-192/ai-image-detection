@@ -5,7 +5,7 @@ from tensorflow.keras.preprocessing import image
 import numpy as np
 from PIL import Image
 import io
-import h5py
+import time
 
 class ImageDetector:
     def __init__(self, model_path='resnet50_cifake.h5'):
@@ -28,15 +28,19 @@ class ImageDetector:
             layers.Dense(1, activation='sigmoid')
         ])
         
-        # Load only the weights (skip config deserialization)
+        # Load only the weights
         self.model.load_weights(model_path)
         
         self.img_size = (224, 224)
+        self.model_version = "ResNet50-v1"
         print("✅ Model loaded successfully")
     
     def preprocess_image(self, img_file):
         """Preprocess uploaded image for model"""
         img = Image.open(io.BytesIO(img_file.read()))
+        
+        # Store original dimensions
+        original_dims = f"{img.width}x{img.height}"
         
         if img.mode != 'RGB':
             img = img.convert('RGB')
@@ -46,13 +50,26 @@ class ImageDetector:
         img_array = np.expand_dims(img_array, axis=0)
         img_array = img_array / 255.0
         
-        return img_array
+        return img_array, original_dims
     
     def predict(self, img_file):
-        """Predict if image is real or AI-generated"""
-        img_array = self.preprocess_image(img_file)
+        """
+        Predict if image is real or AI-generated
+        Returns: dict with prediction results and metadata
+        """
+        # Start timing
+        start_time = time.time()
+        
+        # Preprocess
+        img_array, original_dims = self.preprocess_image(img_file)
+        
+        # Predict
         prediction = self.model.predict(img_array, verbose=0)[0][0]
         
+        # Calculate processing time
+        processing_time = int((time.time() - start_time) * 1000)  # milliseconds
+        
+        # Interpret results
         is_real = prediction > 0.5
         confidence = prediction if is_real else (1 - prediction)
         label = "Real" if is_real else "AI-Generated"
@@ -60,5 +77,10 @@ class ImageDetector:
         return {
             'classification': label,
             'confidence': float(confidence),
-            'raw_score': float(prediction)
+            'raw_score': float(prediction),
+            'metadata': {
+                'model_version': self.model_version,
+                'processing_time_ms': processing_time,
+                'image_dimensions': original_dims
+            }
         }
