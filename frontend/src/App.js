@@ -2,34 +2,39 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// We will build these next
+import HomeView from './components/HomeView';
+import AuthView from './components/AuthView';
+import HistoryView from './components/HistoryView';
+
 const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 
 function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'login', 'register', 'history'
+  // ----------------------------------------------------
+  // EXACT SAME LOGIC - UNTOUCHED
+  // ----------------------------------------------------
+  const [currentView, setCurrentView] = useState('home');
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  
-  // Detection state
+  const [backendStatus, setBackendStatus] = useState('Checking...');
+
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [result, setResult] = useState(null);
+  const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  // Auth state
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
-  
-  // History state
+
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Check if user is logged in on mount
   useEffect(() => {
     if (token) {
-      // Decode token to get user info (simple version)
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUser({ email: payload.email, user_id: payload.user_id });
@@ -40,19 +45,18 @@ function App() {
     }
   }, [token]);
 
-  // ==================== AUTH FUNCTIONS ====================
+  useEffect(() => {
+    axios.get(`${API_URL}/health`)
+      .then(res => setBackendStatus(`Connected (${res.data.model_version})`))
+      .catch(err => setBackendStatus('Disconnected'));
+  }, []);
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
-
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, {
-        email,
-        password
-      });
-
+      const response = await axios.post(`${API_URL}/auth/register`, { email, password });
       const { token: newToken, user: newUser } = response.data;
       localStorage.setItem('token', newToken);
       setToken(newToken);
@@ -71,13 +75,8 @@ function App() {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
-
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, {
-        email,
-        password
-      });
-
+      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
       const { token: newToken, user: newUser } = response.data;
       localStorage.setItem('token', newToken);
       setToken(newToken);
@@ -99,14 +98,13 @@ function App() {
     setCurrentView('home');
   };
 
-  // ==================== DETECTION FUNCTIONS ====================
-
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedImage(file);
       setImagePreview(URL.createObjectURL(file));
       setResult(null);
+      setMetadata(null);
       setError(null);
     }
   };
@@ -116,28 +114,19 @@ function App() {
       setError('Please select an image first');
       return;
     }
-
     setLoading(true);
     setError(null);
     setResult(null);
-
+    setMetadata(null);
     const formData = new FormData();
     formData.append('image', selectedImage);
-
     try {
-      const headers = {};
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const response = await axios.post(`${API_URL}/detect`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          ...headers
-        }
+        headers: { 'Content-Type': 'multipart/form-data', ...headers }
       });
-
       setResult(response.data.result);
+      setMetadata(response.data.metadata);
     } catch (err) {
       setError(err.response?.data?.error || 'Detection failed');
     } finally {
@@ -145,192 +134,88 @@ function App() {
     }
   };
 
-  // ==================== HISTORY FUNCTIONS ====================
-
-  const fetchHistory = async () => {
-    if (!token) return;
-
-    setHistoryLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-
-      setHistory(response.data.history);
-    } catch (err) {
-      console.error('Failed to fetch history:', err);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchHistory = async () => {
+      if (!token) return;
+      setHistoryLoading(true);
+      try {
+        const response = await axios.get(`${API_URL}/history`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setHistory(response.data.history);
+      } catch (err) {
+        console.error('Failed to fetch history:', err);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
     if (currentView === 'history' && token) {
       fetchHistory();
     }
   }, [currentView, token]);
 
-  // ==================== RENDER ====================
-
+  
+  // ----------------------------------------------------
+  // NEW RENDER LOGIC - CLEAN CONTROLLER
+  // ----------------------------------------------------
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>🔍 AI Image Detection System</h1>
+    <div className="app-container">
+      {/* Sleek Floating Header instead of a blocky Nav */}
+      <header className="glass-header">
+        <div className="logo-area" onClick={() => setCurrentView('home')}>
+          <span className="status-dot" data-status={backendStatus.includes('Connected') ? 'online' : 'offline'}></span>
+          <h1>AI Image Detector</h1>
+        </div>
         
-        {/* Navigation */}
-        <nav className="nav">
-          <button onClick={() => setCurrentView('home')} className={currentView === 'home' ? 'active' : ''}>
-            Home
-          </button>
+        <div className="header-controls">
           {user ? (
             <>
-              <button onClick={() => setCurrentView('history')} className={currentView === 'history' ? 'active' : ''}>
-                History
-              </button>
-              <button onClick={handleLogout}>
-                Logout ({user.email})
-              </button>
+              <button className={`nav-pill ${currentView === 'history' ? 'active' : ''}`} onClick={() => setCurrentView('history')}>History</button>
+              <button className="nav-pill logout" onClick={handleLogout}>Logout</button>
             </>
           ) : (
-            <>
-              <button onClick={() => setCurrentView('login')} className={currentView === 'login' ? 'active' : ''}>
-                Login
-              </button>
-              <button onClick={() => setCurrentView('register')} className={currentView === 'register' ? 'active' : ''}>
-                Register
-              </button>
-            </>
+            <button className="nav-pill" onClick={() => setCurrentView('login')}>Sign In</button>
           )}
-        </nav>
-
-        {/* HOME VIEW */}
-        {currentView === 'home' && (
-          <div className="upload-section">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageSelect}
-              id="file-input"
-            />
-            <label htmlFor="file-input" className="file-label">
-              Choose Image
-            </label>
-
-            {imagePreview && (
-              <div className="preview">
-                <img src={imagePreview} alt="Preview" />
-              </div>
-            )}
-
-            {selectedImage && (
-              <button
-                onClick={handleDetect}
-                disabled={loading}
-                className="detect-btn"
-              >
-                {loading ? 'Analyzing...' : 'Detect'}
-              </button>
-            )}
-
-            {error && (
-              <div className="error">
-                <p>❌ {error}</p>
-              </div>
-            )}
-
-            {result && (
-              <div className={`result ${result.classification === 'Real' ? 'real' : 'fake'}`}>
-                <h2>Result: {result.classification}</h2>
-                <p>Confidence: {(result.confidence * 100).toFixed(1)}%</p>
-                <div className="confidence-bar">
-                  <div
-                    className="confidence-fill"
-                    style={{ width: `${result.confidence * 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* LOGIN VIEW */}
-        {currentView === 'login' && (
-          <div className="auth-section">
-            <h2>Login</h2>
-            <form onSubmit={handleLogin}>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-            {authError && <p className="error">{authError}</p>}
-          </div>
-        )}
-
-        {/* REGISTER VIEW */}
-        {currentView === 'register' && (
-          <div className="auth-section">
-            <h2>Register</h2>
-            <form onSubmit={handleRegister}>
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button type="submit" disabled={authLoading}>
-                {authLoading ? 'Registering...' : 'Register'}
-              </button>
-            </form>
-            {authError && <p className="error">{authError}</p>}
-          </div>
-        )}
-
-        {/* HISTORY VIEW */}
-        {currentView === 'history' && (
-          <div className="history-section">
-            <h2>Detection History</h2>
-            {historyLoading ? (
-              <p>Loading history...</p>
-            ) : history.length === 0 ? (
-              <p>No detections yet. Upload an image to get started!</p>
-            ) : (
-              <div className="history-list">
-                {history.map((item) => (
-                  <div key={item.detection_id} className={`history-item ${item.classification === 'Real' ? 'real' : 'fake'}`}>
-                    <p><strong>{item.classification}</strong></p>
-                    <p>Confidence: {(item.confidence_score * 100).toFixed(1)}%</p>
-                    <p><small>{new Date(item.created_at).toLocaleString()}</small></p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        </div>
       </header>
+
+      <main className="main-content">
+        {currentView === 'home' && (
+          <HomeView 
+            handleImageSelect={handleImageSelect}
+            handleDetect={handleDetect}
+            imagePreview={imagePreview}
+            selectedImage={selectedImage}
+            result={result}
+            metadata={metadata}
+            loading={loading}
+            error={error}
+          />
+        )}
+
+        {(currentView === 'login' || currentView === 'register') && (
+          <AuthView 
+            currentView={currentView}
+            setCurrentView={setCurrentView}
+            handleLogin={handleLogin}
+            handleRegister={handleRegister}
+            email={email}
+            setEmail={setEmail}
+            password={password}
+            setPassword={setPassword}
+            authLoading={authLoading}
+            authError={authError}
+          />
+        )}
+
+        {currentView === 'history' && (
+          <HistoryView 
+            history={history}
+            historyLoading={historyLoading}
+          />
+        )}
+      </main>
     </div>
   );
 }
