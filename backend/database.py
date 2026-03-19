@@ -2,7 +2,6 @@ from supabase import create_client
 import os
 from dotenv import load_dotenv
 import uuid
-from datetime import datetime
 
 load_dotenv()
 
@@ -41,7 +40,7 @@ class DatabaseManager:
             print(f"Image upload error: {e}")
             return None
     
-    def save_detection(self, user_id, image_url, classification, confidence, raw_score):
+    def save_detection(self, user_id, image_url, classification, confidence, raw_score, heatmap_url=None):
         """Save detection result to database"""
         try:
             # Insert into detections table
@@ -61,7 +60,7 @@ class DatabaseManager:
             self.client.table('detection_analysis').insert({
                 'detection_id': detection_id,
                 'raw_prediction_score': raw_score,
-                'heatmap_data': None
+                'heatmap_data': heatmap_url  # Store heatmap URL
             }).execute()
             
             return detection_id

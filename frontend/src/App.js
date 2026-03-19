@@ -3,7 +3,7 @@ import axios from 'axios';
 import './App.css';
 
 // We will build these next
-import HomeView from './components/HomeView';
+import HomeView from './components/Home/HomeView';
 import AuthView from './components/AuthView';
 import HistoryView from './components/history/HistoryView';
 
@@ -21,6 +21,7 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [result, setResult] = useState(null);
+  const [heatmap, setHeatmap] = useState(null);
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -115,30 +116,42 @@ function App() {
     }
   };
 
-  const handleDetect = async () => {
-    if (!selectedImage) {
-      setError('Please select an image first');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setMetadata(null);
-    const formData = new FormData();
-    formData.append('image', selectedImage);
-    try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const response = await axios.post(`${API_URL}/detect`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data', ...headers }
-      });
-      setResult(response.data.result);
-      setMetadata(response.data.metadata);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Detection failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+ const handleDetect = async () => {
+  if (!selectedImage) {
+    setError('Please select an image first');
+    return;
+  }
+  setLoading(true);
+  setError(null);
+  setResult(null);
+  setMetadata(null);
+  setHeatmap(null);  // Add this
+  
+  const formData = new FormData();
+  formData.append('image', selectedImage);
+  
+  try {
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await axios.post(`${API_URL}/detect`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data', ...headers }
+    });
+    
+    setResult(response.data.result);
+    setHeatmap(response.data.heatmap);
+    
+    // Set metadata with heatmap
+    setMetadata({
+      heatmap: response.data.heatmap,
+      saved: response.data.saved,
+      detection_id: response.data.detection_id
+    });
+    
+  } catch (err) {
+    setError(err.response?.data?.error || 'Detection failed');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     const fetchHistory = async () => {
