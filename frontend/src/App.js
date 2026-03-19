@@ -5,7 +5,7 @@ import './App.css';
 // We will build these next
 import HomeView from './components/HomeView';
 import AuthView from './components/AuthView';
-import HistoryView from './components/HistoryView';
+import HistoryView from './components/history/HistoryView';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:5000';
 
@@ -34,16 +34,22 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({ email: payload.email, user_id: payload.user_id });
-      } catch (e) {
-        localStorage.removeItem('token');
-        setToken(null);
-      }
+  const storedToken = localStorage.getItem('token');
+  console.log('🔑 Token check:', storedToken ? 'Found' : 'Not found');
+  
+  if (storedToken) {
+    try {
+      const payload = JSON.parse(atob(storedToken.split('.')[1]));
+      console.log('✅ Token valid:', payload.email);
+      setUser({ email: payload.email, user_id: payload.user_id });
+      setToken(storedToken);
+    } catch (e) {
+      console.error('❌ Invalid token:', e);
+      localStorage.removeItem('token');
+      setToken(null);
     }
-  }, [token]);
+  }
+}, []);
 
   useEffect(() => {
     axios.get(`${API_URL}/health`)

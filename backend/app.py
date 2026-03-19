@@ -111,12 +111,20 @@ def detect():
         return jsonify({'error': 'Invalid file type. Use PNG, JPG, JPEG, or WEBP'}), 400
     
     try:
-        # Run detection
-        result = detector.predict(img_file)
+        # Save file data for both detection and storage
+        file_data = img_file.read()
         
-        # Save to database if user is authenticated
+        # Create a file-like object for detector
+        from io import BytesIO
+        img_file_for_detection = BytesIO(file_data)
+        
+        # Run detection
+        result = detector.predict(img_file_for_detection)
+        
+        # Check if user is authenticated
         token = request.headers.get('Authorization')
         detection_id = None
+        image_url = None
         
         if token and token.startswith('Bearer '):
             from auth import decode_token
@@ -124,23 +132,32 @@ def detect():
             
             if payload:
                 user_id = payload['user_id']
-                detection_id = db.save_detection(
-                    user_id=user_id,
-                    image_url=img_file.filename,
-                    classification=result['classification'],
-                    confidence=result['confidence'],
-                    raw_score=result['raw_score']
-                )
+                
+                # Upload image to storage
+                image_url = db.upload_image(file_data, img_file.filename)
+                
+                if image_url:
+                    # Save detection to database
+                    detection_id = db.save_detection(
+                        user_id=user_id,
+                        image_url=image_url,
+                        classification=result['classification'],
+                        confidence=result['confidence'],
+                        raw_score=result['raw_score']
+                    )
         
         return jsonify({
             'success': True,
             'result': result,
             'saved': detection_id is not None,
-            'detection_id': detection_id
+            'detection_id': detection_id,
+            'image_url': image_url
         })
     
     except Exception as e:
         print(f"Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Detection failed: {str(e)}'}), 500
 
 @app.route('/history', methods=['GET'])
