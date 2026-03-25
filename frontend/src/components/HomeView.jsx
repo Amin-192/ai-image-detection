@@ -1,4 +1,6 @@
 import React from 'react';
+import UploadZone from './UploadZone';
+import DetectiveResult from './DetectiveResult';
 
 function HomeView({
   handleImageSelect,
@@ -11,96 +13,65 @@ function HomeView({
   error
 }) {
   return (
-    <div className="home-view fade-in">
-      <div className="hero-section">
-        <h2>Detect AI-Generated Images</h2>
-        <p className="subtitle">Upload a photo to verify its authenticity using our ResNet-50 CNN model.</p>
-      </div>
-
-      <div className="upload-container">
-        {/* The hidden file input and the styled dropzone label */}
-        <input
-          type="file"
-          accept="image/png, image/jpeg, image/jpg, image/webp"
-          onChange={handleImageSelect}
-          id="file-input"
-          className="hidden-input"
-        />
-        
-        <label htmlFor="file-input" className={`dropzone ${imagePreview ? 'has-image' : ''}`}>
-          {!imagePreview ? (
-            <div className="dropzone-placeholder">
-              <span className="upload-icon">📁</span>
-              <h3>Click to upload image</h3>
-              <p>Supports PNG, JPG, JPEG, WEBP</p>
-            </div>
-          ) : (
-            <div className="image-preview-wrapper">
-              <img src={imagePreview} alt="Preview" className="image-preview" />
-              <div className="change-image-overlay">
-                <span>Change Image</span>
-              </div>
-            </div>
-          )}
-        </label>
-
-        {error && (
-          <div className="error-banner">
-            <span className="error-icon">⚠️</span>
-            <p>{error}</p>
-          </div>
-        )}
-
-        {selectedImage && (
-          <button 
-            className={`action-btn ${loading ? 'loading' : ''}`} 
-            onClick={handleDetect}
-            disabled={loading}
-          >
-            {loading ? (
-              <span className="loader-text">Analyzing Image...</span>
-            ) : (
-              'Analyze Image'
-            )}
-          </button>
-        )}
-      </div>
-
-      {/* RESULT CARD */}
-      {result && (
-        <div className={`result-card slide-up ${result.classification === 'Real' ? 'theme-real' : 'theme-fake'}`}>
-          <div className="result-header">
-            <h3>{result.classification}</h3>
-            <span className="confidence-badge">
-              {(result.confidence * 100).toFixed(1)}% Confidence
-            </span>
-          </div>
-
-          <div className="confidence-track">
-            <div 
-              className="confidence-fill" 
-              style={{ width: `${result.confidence * 100}%` }}
-            ></div>
-          </div>
-
-          {metadata && (
-            <div className="metadata-grid">
-              <div className="meta-item">
-                <span className="meta-label">Model</span>
-                <span className="meta-value">{metadata.model_version}</span>
-              </div>
-              <div className="meta-item">
-                <span className="meta-label">Processing Time</span>
-                <span className="meta-value">{metadata.processing_time_ms}ms</span>
-              </div>
-              <div className="meta-item">
-                <span className="meta-label">Dimensions</span>
-                <span className="meta-value">{metadata.image_dimensions}</span>
-              </div>
-            </div>
-          )}
+    <div className="relative min-h-[90vh] w-full flex flex-col items-center px-4 py-12 md:py-20 overflow-hidden">
+      
+      {/* Background Architectural Elements (Kills the empty void) */}
+      <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-30">
+        {/* Dotted Grid */}
+        <div className="absolute w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+        {/* Faint floating UI elements to make it look technical */}
+        <div className="absolute top-20 left-10 border border-white/10 rounded-lg p-3 bg-white/5 backdrop-blur-sm hidden lg:block">
+          <p className="text-[10px] text-gray-500 font-mono">MODEL: RESNET-50</p>
+          <p className="text-[10px] text-gray-500 font-mono">LAYERS: 50</p>
         </div>
-      )}
+        <div className="absolute bottom-40 right-10 border border-white/10 rounded-lg p-3 bg-white/5 backdrop-blur-sm hidden lg:block">
+          <p className="text-[10px] text-gray-500 font-mono">STATUS: AWAITING INPUT</p>
+          <p className="text-[10px] text-gray-500 font-mono">PIXEL_ANALYSIS: READY</p>
+        </div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-5xl flex flex-col items-center">
+        
+        {/* High-End Typography Header */}
+        <div className="text-center mb-12 w-full">
+          <h2 className="text-5xl md:text-7xl font-bold tracking-tighter text-white mb-6">
+            Authenticity, <span className="text-gray-500">Verified.</span>
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto font-light leading-relaxed">
+            Upload any photograph. Our neural network analyzes pixel distribution and diffusion artifacts to instantly separate reality from AI synthesis.
+          </p>
+        </div>
+
+        {/* Upload Zone Container */}
+        <div className="w-full max-w-4xl bg-[#0a0c10]/80 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-2xl p-2 mb-8">
+          <UploadZone
+            handleImageSelect={handleImageSelect}
+            handleDetect={handleDetect}
+            imagePreview={imagePreview}
+            selectedImage={selectedImage}
+            loading={loading}
+          />
+        </div>
+
+        {/* Clean Error State */}
+        {error && (
+          <div className="w-full max-w-2xl bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 flex items-center gap-3 text-rose-400 font-medium fade-in">
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Results */}
+        {result && (
+          <div className="w-full mt-4">
+            <DetectiveResult
+              result={result}
+              metadata={metadata}
+              imagePreview={imagePreview}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

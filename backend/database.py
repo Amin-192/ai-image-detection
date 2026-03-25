@@ -18,32 +18,22 @@ class DatabaseManager:
         print("✅ Database connected")
     
     def upload_image(self, file_data, filename):
-        """Upload image to Supabase Storage and return public URL"""
         try:
-            # Create unique filename
             file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'jpg'
             unique_filename = f"{uuid.uuid4()}.{file_ext}"
             
-            # Upload to storage
             self.client.storage.from_(self.bucket_name).upload(
                 path=unique_filename,
                 file=file_data,
                 file_options={"content-type": f"image/{file_ext}"}
             )
-            
-            # Get public URL
-            public_url = self.client.storage.from_(self.bucket_name).get_public_url(unique_filename)
-            
-            return public_url
-        
+            return self.client.storage.from_(self.bucket_name).get_public_url(unique_filename)
         except Exception as e:
             print(f"Image upload error: {e}")
             return None
     
     def save_detection(self, user_id, image_url, classification, confidence, raw_score, heatmap_url=None):
-        """Save detection result to database"""
         try:
-            # Insert into detections table
             detection_result = self.client.table('detections').insert({
                 'user_id': user_id,
                 'image_url': image_url,
@@ -51,26 +41,21 @@ class DatabaseManager:
                 'confidence_score': confidence
             }).execute()
             
-            if not detection_result.data:
-                return None
-            
+            if not detection_result.data: return None
             detection_id = detection_result.data[0]['detection_id']
             
-            # Insert into detection_analysis table
             self.client.table('detection_analysis').insert({
                 'detection_id': detection_id,
                 'raw_prediction_score': raw_score,
-                'heatmap_data': heatmap_url  # Store heatmap URL
+                'heatmap_data': heatmap_url
             }).execute()
             
             return detection_id
-        
         except Exception as e:
             print(f"Database error: {e}")
             return None
     
     def get_user_history(self, user_id, limit=10):
-        """Get user's detection history with images"""
         try:
             result = self.client.table('detections')\
                 .select('*, detection_analysis(*)')\
@@ -78,34 +63,22 @@ class DatabaseManager:
                 .order('created_at', desc=True)\
                 .limit(limit)\
                 .execute()
-            
             return result.data
         except Exception as e:
             print(f"Error fetching history: {e}")
             return []
-    
-    def register_user(self, email, password_hash):
-        """Register new user"""
+        
+    def delete_detection(self, detection_id, user_id):
+        """Delete a detection record (ensuring the user owns it)"""
         try:
-            result = self.client.table('users').insert({
-                'email': email,
-                'password_hash': password_hash
-            }).execute()
-            
-            return result.data[0] if result.data else None
-        except Exception as e:
-            print(f"Registration error: {e}")
-            return None
-    
-    def get_user_by_email(self, email):
-        """Get user by email"""
-        try:
-            result = self.client.table('users')\
-                .select('*')\
-                .eq('email', email)\
+            result = self.client.table('detections')\
+                .delete()\
+                .eq('detection_id', detection_id)\
+                .eq('user_id', user_id)\
                 .execute()
             
-            return result.data[0] if result.data else None
+            # If data is returned, it means a row was actually deleted
+            return True if result.data else False
         except Exception as e:
-            print(f"Error fetching user: {e}")
-            return None
+            print(f"Error deleting record: {e}")
+            return False

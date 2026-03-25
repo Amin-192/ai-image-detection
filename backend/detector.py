@@ -9,6 +9,13 @@ class ImageDetector:
     def __init__(self, model_path):
         print(f"Loading model weights from {model_path}...")
         
+        # Register HEIC support
+        try:
+            from pillow_heif import register_heif_opener
+            register_heif_opener()
+        except ImportError:
+            pass
+        
         # Build base model
         base_model = keras.applications.ResNet50(
             weights='imagenet',
@@ -44,7 +51,7 @@ class ImageDetector:
         print("✅ Model loaded successfully")
     
     def preprocess_image(self, image_file):
-        """Preprocess image"""
+        """Preprocess image (supports HEIC)"""
         img = Image.open(image_file).convert('RGB')
         img = img.resize((224, 224))
         img_array = np.array(img) / 255.0
@@ -109,8 +116,6 @@ class ImageDetector:
         
         except Exception as e:
             print(f"⚠️ Grad-CAM error: {e}")
-            import traceback
-            traceback.print_exc()
             
             # Fallback: seed-based varying heatmap
             np.random.seed(int(np.sum(img_array) * 1000) % 10000)
@@ -140,17 +145,34 @@ class ImageDetector:
         heatmap = self.generate_gradcam(img_array)
         heatmap_img = self.create_heatmap_overlay(original_img, heatmap)
         
-        buffered = io.BytesIO()
-        heatmap_img.save(buffered, format="PNG")
-        heatmap_base64 = buffered.getvalue()
+        # Convert heatmap to bytes
+        heatmap_buffer = io.BytesIO()
+        heatmap_img.save(heatmap_buffer, format="PNG")
+        heatmap_bytes = heatmap_buffer.getvalue()
         
-        # FIXED: FAKE=0, REAL=1
-        classification = "Real" if prediction > 0.5 else "Fake"
-        confidence = prediction if prediction > 0.5 else (1 - prediction)
+        # Convert original to JPEG bytes (handles HEIC properly)
+        original_buffer = io.BytesIO()
+        original_img.save(original_buffer, format="JPEG", quality=95)
+        original_bytes = original_buffer.getvalue()
+        
+        # CORRECT INTERPRETATION:
+        # Sigmoid output IS the probability/confidence
+        # prediction = 0.02 means 2% chance it's Real, 98% chance it's Fake
+        # prediction = 0.98 means 98% chance it's Real, 2% chance it's Fake
+        
+        if prediction > 0.5:
+            # Closer to 1.0 = Real
+            classification = "Real"
+            confidence = prediction  # Already the confidence!
+        else:
+            # Closer to 0.0 = Fake
+            classification = "Fake"
+            confidence = 1 - prediction  # Flip it for "Fake" confidence
         
         return {
             'classification': classification,
             'confidence': float(confidence),
             'raw_score': float(prediction),
-            'heatmap': heatmap_base64
+            'heatmap': heatmap_bytes,
+            'original_image': original_bytes
         }
