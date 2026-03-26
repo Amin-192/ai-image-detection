@@ -14,7 +14,7 @@ CORS(app)
 
 print("Initializing backend...")
 # Updated to point to your new models folder
-detector = ImageDetector('models/resnet50_cifake.h5')
+detector = ImageDetector('models/modern_detector_v1_72pct.weights.h5')
 db = DatabaseManager()
 print("✅ Backend ready!")
 
