@@ -9,7 +9,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-*.h5
+
 *.pkl
 
 # Node
