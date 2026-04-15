@@ -12,9 +12,19 @@ from database import DatabaseManager
 app = Flask(__name__)
 CORS(app)
 
+import urllib.request
+
+MODEL_PATH = 'models/modern_detector_v1_72pct.weights.h5'
+MODEL_URL = 'https://github.com/Amin-192/ai-image-detection/releases/download/v1.0/modern_detector_v1_72pct.weights.h5'
+
+if not os.path.exists(MODEL_PATH):
+    print("Model not found, downloading from GitHub Releases...")
+    os.makedirs('models', exist_ok=True)
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    print("✅ Model downloaded!")
+
 print("Initializing backend...")
-# Updated to point to your new models folder
-detector = ImageDetector('models/modern_detector_v1_72pct.weights.h5')
+detector = ImageDetector(MODEL_PATH)
 db = DatabaseManager()
 print("✅ Backend ready!")
 
