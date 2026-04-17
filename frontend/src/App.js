@@ -257,6 +257,26 @@ const [authSuccess, setAuthSuccess] = useState(false); // Add this line
               )
             } />
 
+            <Route path="/register" element={
+  user ? <Navigate to="/" /> : (
+    <AuthView 
+      currentView="register"
+      setCurrentView={() => {}}
+      handleLogin={handleLogin}
+      handleRegister={handleRegister}
+      email={email}
+      setEmail={setEmail}
+      password={password}
+      setPassword={setPassword}
+      authLoading={authLoading}
+      authError={authError}
+      setAuthError={setAuthError}
+      authSuccess={authSuccess}
+      setAuthSuccess={setAuthSuccess}
+    />
+  )
+} />
+
             <Route path="/history" element={
               !user ? <Navigate to="/login" /> : (
                 <History 

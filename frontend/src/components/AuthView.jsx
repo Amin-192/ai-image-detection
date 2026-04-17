@@ -1,5 +1,5 @@
 import React from 'react';
-
+import { Link } from 'react-router-dom';
 function AuthView({
   currentView,
   setCurrentView,
@@ -119,18 +119,17 @@ function AuthView({
 
         <div className="mt-8 text-center text-sm text-gray-400">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
-            type="button"
-            onClick={() => {
-              setAuthError(null);
-              setEmail('');
-              setPassword('');
-              setCurrentView(isLogin ? 'register' : 'login');
-            }}
-            className="text-blue-400 hover:text-blue-300 font-medium transition-colors focus:outline-none"
-          >
-            {isLogin ? 'Sign up' : 'Log in'}
-          </button>
+          <Link
+  to={isLogin ? '/register' : '/login'}
+  onClick={() => {
+    setAuthError(null);
+    setEmail('');
+    setPassword('');
+  }}
+  className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+>
+  {isLogin ? 'Sign up' : 'Log in'}
+</Link>
         </div>
 
       </div>
